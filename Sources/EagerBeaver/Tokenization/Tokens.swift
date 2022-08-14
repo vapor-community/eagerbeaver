@@ -5,6 +5,10 @@ public class DocumentToken: HtmlToken {
     public var publicId: String?
     
     public var systemId: String?
+    
+    public init() {
+        super.init(kind: .document)
+    }
 }
 
 public class TagToken: HtmlToken {

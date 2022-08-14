@@ -3,66 +3,95 @@ import XCTest
 
 final class TokenizerTests: XCTestCase {
     
+    // Tests consuming a start tag
     func testStartTag() throws {
         
-        let content = "<html>"
+        // ...in its correct form
+        XCTAssertNoThrow(try Tokenizer().consume("<html>"))
         
-        XCTAssertNoThrow(try Tokenizer().consume(content))
+        // ...when it is self-closing
+        XCTAssertNoThrow(try Tokenizer().consume("<html/>"))
+        
+        // ...when it contains an invalid character
+        XCTAssertThrowsError(try Tokenizer().consume("<?html>"))
+        
+        // ...when the tag name is missing
+        XCTAssertThrowsError(try Tokenizer().consume("<>"))
     }
     
-    func testDoctype() throws {
+    // Tests consuming a doctype
+    func testDocumentType() throws {
         
-        let content = "<!DOCTYPE html>"
+        // ...with html 5 specification
+        XCTAssertNoThrow(try Tokenizer().consume("<!DOCTYPE html>"))
         
-        XCTAssertNoThrow(try Tokenizer().consume(content))
+        // ...with html 4 strict specification
+        XCTAssertNoThrow(try Tokenizer().consume("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">"))
+        
+        // ...with html 4 transitional specification
+        XCTAssertNoThrow(try Tokenizer().consume("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">"))
+        
+        // ...with html 4 frameset specification
+        XCTAssertNoThrow(try Tokenizer().consume("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\" \"http://www.w3.org/TR/html4/frameset.dtd\">"))
+        
+        // ...when the doctype is incorrect
+        XCTAssertThrowsError(try Tokenizer().consume("<!DOCYPE html>"))
+        
+        // ...when the root element is incorrect
+        XCTAssertThrowsError(try Tokenizer().consume("<!DOCTYPE HML PBLIC>"))
+        
+        // ...when the keyword is incorrect
+        XCTAssertThrowsError(try Tokenizer().consume("<!DOCTYPE HTML PBLIC>"))
+        XCTAssertThrowsError(try Tokenizer().consume("<!DOCTYPE HTML STEM>"))
+
     }
     
+    // Tests consuming a comment
     func testComment() throws {
         
-        let content = "<!--Comment >"
+        // ...in its correct form
+        XCTAssertNoThrow(try Tokenizer().consume("<!--Comment-->"))
         
-        XCTAssertNoThrow(try Tokenizer().consume(content))
+        // ...with spaces before and after
+        XCTAssertNoThrow(try Tokenizer().consume("<!-- Comment -->"))
+        
+        // ...with spaces inbetween
+        XCTAssertNoThrow(try Tokenizer().consume("<!--Comment comment-->"))
+        
+        // ...with hyphen minus in between
+        XCTAssertNoThrow(try Tokenizer().consume("<!--Comment-comment-->"))
+        
+        // ...when it has no content
+        XCTAssertThrowsError(try Tokenizer().consume("<!-->"))
+        
+        // ...when a dash is missing
+        XCTAssertThrowsError(try Tokenizer().consume("<!-Comment-->"))
+        XCTAssertThrowsError(try Tokenizer().consume("<!-- Comment ->"))
     }
     
+    // Tests consuming a end tag
     func testEndTag() throws {
         
-        let content = "</html>"
+        // ...in its correct form
+        XCTAssertNoThrow(try Tokenizer().consume("</html>"))
         
-        XCTAssertNoThrow(try Tokenizer().consume(content))
+        // ...when the tag name is missing
+        XCTAssertThrowsError(try Tokenizer().consume("</>"))
     }
-    
-    func testSelfClosing() throws {
-        
-        let content = "<html/>"
-        
-        XCTAssertNoThrow(try Tokenizer().consume(content))
-    }
-    
-    func testInvalidCharacterInTagName() throws {
-        
-        let content = "<?html>"
-        
-        XCTAssertThrowsError(try Tokenizer().consume(content))
-    }
-    
-    func testMissingTagNameInStartTag() throws {
-        
-        let content = "<>"
-        
-        XCTAssertThrowsError(try Tokenizer().consume(content))
-    }
-    
-    func testMissingTagNameInEndTag() throws {
-        
-        let content = "</>"
-        
-        XCTAssertThrowsError(try Tokenizer().consume(content))
-    }
-    
+
+    // Tests consuming a attribute
     func testAttribute() throws {
         
-        let content = "<html name='value'>"
+        // ...with single quotation mark
+        XCTAssertNoThrow(try Tokenizer().consume("<html name='value'>"))
         
-        XCTAssertNoThrow(try Tokenizer().consume(content))
+        // ...with single quotation mark and no value
+        XCTAssertNoThrow(try Tokenizer().consume("<html name=''>"))
+        
+        // ...with double quotation mark
+        XCTAssertNoThrow(try Tokenizer().consume("<html name=\"value\">"))
+        
+        // ...with double quotation mark and no value
+        XCTAssertNoThrow(try Tokenizer().consume("<html name=\"\">"))
     }
 }

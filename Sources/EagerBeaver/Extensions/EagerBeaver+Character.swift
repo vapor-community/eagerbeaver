@@ -1,3 +1,4 @@
+import Foundation
 extension Character {
     
     public var isAmpersand: Bool {
@@ -72,7 +73,7 @@ extension Character {
         return false
     }
     
-    public var isDoubleQuote: Bool {
+    public var isQuotationMark: Bool {
         
         if self == "\"" {
             return true
@@ -81,9 +82,18 @@ extension Character {
         return false
     }
     
-    public var isMinus: Bool {
+    public var isHyphenMinus: Bool {
         
         if self == "-" {
+            return true
+        }
+        
+        return false
+    }
+    
+    public var isNumberSign: Bool {
+        
+        if self == "#" {
             return true
         }
         
