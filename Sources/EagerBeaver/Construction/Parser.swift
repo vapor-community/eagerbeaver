@@ -71,7 +71,7 @@ internal class Parser {
         
         print(#function)
         
-        let tokens = try Tokenizer.shared.consume(normalize(content))
+        let tokens = try Tokenizer().consume(normalize(content))
         
         if !tokens.isEmpty {
             

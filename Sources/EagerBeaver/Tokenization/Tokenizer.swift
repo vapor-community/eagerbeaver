@@ -105,14 +105,11 @@ internal class Tokenizer {
     private var temp: String = ""
     
     /// Creates a tokenizer
-    private init() {
+    internal init(state: TokenizerState = .data) {
         
         self.tokens = .init()
-        self.state = .data
+        self.state = state
     }
-
-    /// Access the tokenizer
-    internal static let shared = Tokenizer()
     
     /// Resets the buffer
     private func reset(rounds: Int) {
