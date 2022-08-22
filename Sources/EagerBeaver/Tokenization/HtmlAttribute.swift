@@ -1,10 +1,14 @@
-public class HtmlAttribute {
+/// A instance for an attribute
+internal class HtmlAttribute {
     
-    public var name: String
+    /// The name of the attribute
+    internal var name: String
     
-    public var value: String
+    /// The value of the attribute
+    internal var value: String
     
-    public init(name: String, value: String) {
+    /// Creats a attribute
+    internal init(name: String, value: String) {
         
         self.name = name
         self.value = value

@@ -1,31 +1,41 @@
-public class DocumentToken: HtmlToken {
+/// A instance for the document type
+internal class DocumentToken: HtmlToken {
     
-    public var name: String?
+    /// The name of the tag
+    internal var name: String?
     
-    public var publicId: String?
+    /// The public identifier
+    internal var publicId: String?
     
-    public var systemId: String?
+    /// The system identifier
+    internal var systemId: String?
     
-    public init() {
+    /// Creates a document token
+    internal init() {
         super.init(kind: .document)
     }
 }
 
-public class TagToken: HtmlToken {
+/// A instance for the start and end tag
+internal class TagToken: HtmlToken {
     
-    public var name: String
+    /// The name of the tag
+    internal var name: String
     
-    public var attributes: [HtmlAttribute]?
+    /// The attributes of the tag
+    internal var attributes: [HtmlAttribute]?
+
+    internal var selfClosing: Bool = false
     
-    public var selfClosing: Bool = false
-    
-    public init(name: String, kind: TokenKind) {
+    /// Creates a tag token
+    internal init(name: String, kind: TokenKind) {
         
         self.name = name
         super.init(kind: kind)
     }
     
-    public func upsert(_ attribute: HtmlAttribute) {
+    /// Upserts the attribute to the attributes collection
+    internal func upsert(_ attribute: HtmlAttribute) {
         
         if var attributes = self.attributes {
             
@@ -40,24 +50,31 @@ public class TagToken: HtmlToken {
     }
 }
 
-public class CommentToken: HtmlToken {
+/// A instance for the comment
+internal class CommentToken: HtmlToken {
     
-    public var data: String
+    /// The content of the token
+    internal var data: String
     
-    public init(data: String) {
+    /// Creates a comment token
+    internal init(data: String) {
         
         self.data = data
         super.init(kind: .comment)
     }
 }
 
-public class CharacterToken: HtmlToken {
+/// A instance for any other content
+internal class CharacterToken: HtmlToken {
     
-    public var data: String
+    /// The content of the token
+    internal var data: String
     
-    public init(data: String) {
+    /// Creates a character token
+    internal init(data: String) {
         
         self.data = data
         super.init(kind: .character)
     }
 }
+

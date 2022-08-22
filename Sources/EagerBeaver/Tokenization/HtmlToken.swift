@@ -1,6 +1,8 @@
-public class HtmlToken {
+/// A instance for a token
+internal class HtmlToken {
     
-    public enum TokenKind {
+    /// A enumeration of different kinds of tokens
+    internal enum TokenKind {
         
         case starttag
         case endtag
@@ -9,10 +11,11 @@ public class HtmlToken {
         case comment
     }
     
-    public var kind: TokenKind
+    /// The kind of the token
+    internal var kind: TokenKind
     
-    public init(kind: TokenKind) {
-        
+    /// Creates a token
+    internal init(kind: TokenKind) {
         self.kind = kind
     }
 }

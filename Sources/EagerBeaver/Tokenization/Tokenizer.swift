@@ -1,36 +1,53 @@
-public class Tokenizer {
+/// A tokenizer
+internal class Tokenizer {
     
-    /// The collection of  possible errors
-    public enum TokenizerError: Error {
+    /// A enumeration of possible errors
+    internal enum TokenizerError: Error {
         
-        case noRootDeclaration(String)
-        case noKeyword(String)
-        case noDoctype(String)
         case invalidCharacter(Character)
+        case invalidDoctype(String)
+        case invalidRootDeclaration(String)
+        case invalidKeyword(String)
+        case missingRootDeclaration
         case missingTagName
         case missingCommentDash
+        case missingPublicIdentifier
+        case missingSystemIdentifier
+        case missingWhitespace
         case emptyComment
         
-        public var description: String {
+        internal var description: String {
             
             switch self {
             case .emptyComment:
                 return "Empty comment."
                 
+            case .missingWhitespace:
+                return "Missing whitespace."
+                
+            case .missingSystemIdentifier:
+                return "Missing system identifier."
+                
+            case .missingPublicIdentifier:
+                return "Missing public identifier."
+                
             case .missingCommentDash:
                 return "Missing dash."
                 
-            case .noRootDeclaration(let string):
-                return "No correct root declaration \(string)."
-                
-            case .noKeyword(let string):
-                return "No correct keyword \(string)."
-                
-            case .noDoctype(let string):
-                return "No correct doctype \(string)."
-                
             case .missingTagName:
                 return "Missing tag name."
+                
+            case .missingRootDeclaration:
+                return "Missing root declaration."
+                
+            case .invalidKeyword(let string):
+                return "Invalid keyword \(string)."
+                
+            case .invalidRootDeclaration(let string):
+                return "Invalid root declaration \(string)."
+                
+            case .invalidDoctype(let string):
+                return "Invalid doctype \(string)."
                 
             case .invalidCharacter(let character):
                 return "Invalid character \(character)."
@@ -38,10 +55,10 @@ public class Tokenizer {
         }
     }
     
-    /// The collection of different states of the tokenizer
+    /// A enumeration of different states of the tokenizer
     ///
     /// Data is the initial state.
-    public enum TokenizerState {
+    internal enum TokenizerState {
         
         case data
         case starttag
@@ -60,25 +77,19 @@ public class Tokenizer {
         case comment
         case commentenddash
         case commentend
-        case beforedoctype
         case doctype
-        case afterdoctype
-        case beforerootdeclaration
         case rootdeclaration
-        case afterrootdeclaration
-        case beforekeyword
         case keyword
-        case afterkeyword
         case beforepublicidentifier
         case publicidentifier
         case afterpublicidentifier
-        case beforeurireference
-        case urireference
-        case afterurireference
+        case beforesystemidentifier
+        case systemidentifier
+        case aftersystemidentifier
     }
     
     /// The collection of the emitted tokens
-    public var tokens: [HtmlToken]
+    private var tokens: [HtmlToken]
     
     /// The temporary token
     private var token: HtmlToken?
@@ -94,21 +105,24 @@ public class Tokenizer {
     private var temp: String = ""
     
     /// Creates a tokenizer
-    public init() {
+    private init() {
         
         self.tokens = .init()
         self.state = .data
     }
+
+    /// Access the tokenizer
+    internal static let shared = Tokenizer()
     
-    /// Creates a tokenizer with a specific state
-    public init(state: TokenizerState) {
+    /// Resets the buffer
+    private func reset(rounds: Int) {
         
-        self.tokens = .init()
-        self.state = state
+        self.temp = ""
+        self.rounds = rounds
     }
     
     /// Emits the temporary token to the token collection
-    public func emit() throws {
+    private func emit() throws {
         
         print(#function)
         
@@ -120,17 +134,21 @@ public class Tokenizer {
     }
     
     /// Emits a token to the token collection
-    public func emit(_ token: HtmlToken) throws {
+    ///
+    /// - Parameter token: The token
+    /// - Throws:
+    private func emit(token: HtmlToken) throws {
         
         print(#function)
         
         self.tokens.append(token)
     }
     
-    /// Consumes the content by the state of the tokenizer
+    /// Consumes the content by the state the tokenizer is currently in
     ///
-    ///
-    public func consume(_ content: String) throws {
+    /// - Parameter content: The html string
+    /// - Throws:
+    internal func consume(_ content: String) throws -> [HtmlToken] {
         
         print(#function)
         
@@ -183,31 +201,13 @@ public class Tokenizer {
                 self.state = try consumeCommentEnd(character)
                 
             case .doctype:
-                
-                if self.rounds > 0 {
-                    self.state = try bufferDoctype(character)
-                    
-                } else {
-                    self.state = try consumeDoctype(self.temp)
-                }
+                self.state = try consumeDoctype(character)
                 
             case .rootdeclaration:
-                
-                if self.rounds > 0 {
-                    self.state = try bufferRootDeclaration(character)
-                    
-                } else {
-                    self.state = try consumeRootDeclaration(self.temp)
-                }
+                self.state = try consumeRootDeclaration(character)
               
             case .keyword:
-                
-                if self.rounds > 0 {
-                    self.state = try bufferKeyword(character)
-                    
-                } else {
-                    self.state = try consumeKeyword(self.temp)
-                }
+                self.state = try consumeKeyword(character)
                 
             case .beforepublicidentifier:
                 self.state = try consumeBeforePublicIdentifier(character)
@@ -218,19 +218,21 @@ public class Tokenizer {
             case .afterpublicidentifier:
                 self.state = try consumeAfterPublicIdentifier(character)
                 
-            case .beforeurireference:
-                self.state = try consumeBeforeUriReference(character)
+            case .beforesystemidentifier:
+                self.state = try consumeBeforeSystemIdentifier(character)
                 
-            case .urireference:
-                self.state = try consumeUriReference(character)
+            case .systemidentifier:
+                self.state = try consumeSystemIdentifier(character)
                 
-            case .afterurireference:
-                self.state = try consumeAfterUriReference(character)
+            case .aftersystemidentifier:
+                self.state = try consumeAfterSystemIdentifier(character)
                 
             default:
                 self.state = try consumeData(character)
             }
         }
+        
+        return self.tokens
     }
     
     /// Consumes the character
@@ -246,14 +248,9 @@ public class Tokenizer {
             return .starttag
         }
         
-        if character.isLetter {
+        try self.emit(token: CharacterToken(data: String(character)))
         
-            try self.emit(CharacterToken(data: String(character)))
-            
-            return .data
-        }
-        
-        throw TokenizerError.invalidCharacter(character)
+        return .data
     }
     
     /// Consumes the character of the start tag
@@ -311,7 +308,7 @@ public class Tokenizer {
             return .data
         }
         
-        if character.isLetter {
+        if character.isLetter || character.isNumber {
             
             if let token = self.token as? TagToken {
                 
@@ -506,11 +503,11 @@ public class Tokenizer {
         
         if character.isLetter {
             
-            self.rounds = 7
+            self.reset(rounds: 7)
             
             self.token = DocumentToken()
             
-            return try bufferDoctype(character)
+            return try consumeDoctype(character)
         }
         
         if character.isHyphenMinus {
@@ -633,66 +630,55 @@ public class Tokenizer {
         throw TokenizerError.invalidCharacter(character)
     }
     
-    /// Buffers the character of the document type
+    /// Consumes the character of the document type
     ///
     /// - Parameter character: The next input character
     /// - Throws:
     /// - Returns: A new tokenizer state
-    private func bufferDoctype(_ character: Character) throws -> TokenizerState {
+    private func consumeDoctype(_ character: Character) throws -> TokenizerState {
         
         print(#function, character)
         
-        if character.isLetter {
-            
-            self.temp.append(character)
-            
-            self.rounds = rounds - 1
-            
-            return .doctype
+        if character.isGreaterThanSign {
+            throw TokenizerError.missingRootDeclaration
         }
-        
-        throw TokenizerError.invalidCharacter(character)
-    }
-    
-    /// Consumes the document type
-    ///
-    /// - Parameter string: The doctype
-    /// - Throws:
-    /// - Returns: A new tokenizer state
-    private func consumeDoctype(_ string: String) throws -> TokenizerState {
-        
-        print(#function, string)
-        
-        if string.uppercased() == "DOCTYPE" {
-            
-            self.temp = ""
-            self.rounds = 4
-            
-            return .rootdeclaration
-        }
-        
-        throw TokenizerError.noDoctype(string)
-    }
-    
-    /// Buffers the character of the root declaration
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
-    private func bufferRootDeclaration(_ character: Character) throws -> TokenizerState {
-        
-        print(#function, character)
         
         if character.isLetter {
             
-            self.temp.append(character)
+            if self.rounds > 0 {
+                
+                self.temp.append(character)
+                
+                self.rounds = rounds - 1
+                
+                return .doctype
+            }
             
-            self.rounds = rounds - 1
+            throw TokenizerError.missingWhitespace
+        }
+        
+        if character.isWhitespace || character.isNewline {
+            
+            try checkDoctype()
+            
+            self.reset(rounds: 4)
             
             return .rootdeclaration
         }
         
         throw TokenizerError.invalidCharacter(character)
+    }
+    
+    /// Checks the document type
+    ///
+    /// - Throws:
+    private func checkDoctype() throws {
+        
+        print(#function)
+        
+        if self.temp.uppercased() != "DOCTYPE" {
+            throw TokenizerError.invalidDoctype(self.temp)
+        }
     }
     
     /// Consumes the character of the root declaration
@@ -700,35 +686,36 @@ public class Tokenizer {
     /// - Parameter character: The next input character
     /// - Throws:
     /// - Returns: A new tokenizer state
-    private func consumeRootDeclaration(_ string: String) throws -> TokenizerState {
-        
-        print(#function, string)
-        
-        if string.uppercased() == "HTML" {
-            
-            self.temp = ""
-            self.rounds = 6
-            
-            return .keyword
-        }
-        
-        throw TokenizerError.noRootDeclaration(string)
-    }
-    
-    /// Buffers the character of the keyword
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
-    private func bufferKeyword(_ character: Character) throws -> TokenizerState {
+    private func consumeRootDeclaration(_ character: Character) throws -> TokenizerState {
         
         print(#function, character)
         
+        if character.isGreaterThanSign {
+            
+            try self.emit()
+            
+            return .data
+        }
+        
         if character.isLetter {
             
-            self.temp.append(character)
+            if self.rounds > 0 {
+                
+                self.temp.append(character)
+                
+                self.rounds = rounds - 1
+                
+                return .rootdeclaration
+            }
             
-            self.rounds = rounds - 1
+            throw TokenizerError.missingWhitespace
+        }
+        
+        if character.isWhitespace || character.isNewline {
+            
+            try checkRootDeclaration()
+            
+            self.reset(rounds: 6)
             
             return .keyword
         }
@@ -736,46 +723,67 @@ public class Tokenizer {
         throw TokenizerError.invalidCharacter(character)
     }
     
-    /// Consumes the keyword
+    /// Checks the root declaration
     ///
-    /// - Parameter string: The keyword
+    /// - Throws:
+    private func checkRootDeclaration() throws {
+        
+        print(#function)
+        
+        if self.temp.uppercased() != "HTML" {
+            throw TokenizerError.invalidRootDeclaration(self.temp)
+        }
+    }
+    
+    /// Consumes the character of the keyword
+    ///
+    /// - Parameter character: The next input character
     /// - Throws:
     /// - Returns: A new tokenizer state
-    private func consumeKeyword(_ string: String) throws -> TokenizerState {
+    private func consumeKeyword(_ character: Character) throws -> TokenizerState {
         
-        print(#function, string)
+        print(#function, character)
         
-        if string.uppercased() == "SYSTEM" {
+        if character.isGreaterThanSign {
+            throw TokenizerError.missingPublicIdentifier
+        }
+        
+        if character.isLetter {
             
-            if let token = self.token as? DocumentToken {
+            if self.rounds > 0 {
                 
-                token.name = string
+                self.temp.append(character)
                 
-                self.token = token
+                self.rounds = rounds - 1
+                
+                return .keyword
             }
             
-            self.temp = ""
-            self.rounds = 0
+            throw TokenizerError.missingWhitespace
+        }
+        
+        if character.isWhitespace || character.isNewline {
+            
+            try checkKeyword()
+            
+            self.reset(rounds: 0)
             
             return .beforepublicidentifier
         }
         
-        if string.uppercased() == "PUBLIC" {
-            
-            if let token = self.token as? DocumentToken {
-                
-                token.name = string
-                
-                self.token = token
-            }
-            
-            self.temp = ""
-            self.rounds = 0
-            
-            return .beforepublicidentifier
-        }
+        throw TokenizerError.invalidCharacter(character)
+    }
+    
+    /// Checks the keyword
+    ///
+    /// - Throws:
+    private func checkKeyword() throws {
         
-        throw TokenizerError.noKeyword(string)
+        print(#function)
+        
+        if self.temp.uppercased() != "PUBLIC" {
+            throw TokenizerError.invalidKeyword(self.temp)
+        }
     }
     
     /// Consumes the character before the public identifier
@@ -809,7 +817,15 @@ public class Tokenizer {
         
         if let token = self.token as? DocumentToken {
             
-            token.publicId?.append(character)
+            if var publicId = token.publicId {
+                
+                publicId.append(character)
+                
+                token.publicId = publicId
+                
+            } else {
+                token.publicId = String(character)
+            }
             
             self.token = token
         }
@@ -827,7 +843,7 @@ public class Tokenizer {
         print(#function, character)
         
         if character.isWhitespace || character.isNewline {
-            return .beforeurireference
+            return .beforesystemidentifier
         }
         
         if character.isGreaterThanSign {
@@ -837,51 +853,59 @@ public class Tokenizer {
         throw TokenizerError.invalidCharacter(character)
     }
     
-    /// Consumes the character before the uri reference
+    /// Consumes the character before the system identifier
     ///
     /// - Parameter character: The next input character
     /// - Throws:
     /// - Returns: A new tokenizer state
-    private func consumeBeforeUriReference(_ character: Character) throws -> TokenizerState {
+    private func consumeBeforeSystemIdentifier(_ character: Character) throws -> TokenizerState {
         
         print(#function, character)
         
         if character.isApostrophe || character.isQuotationMark  {
-            return .urireference
+            return .systemidentifier
         }
         
         throw TokenizerError.invalidCharacter(character)
     }
     
-    /// Consumes the character of the uri reference
+    /// Consumes the character of the system identifier
     ///
     /// - Parameter character: The next input character
     /// - Throws:
     /// - Returns: A new tokenizer state
-    private func consumeUriReference(_ character: Character) throws -> TokenizerState {
+    private func consumeSystemIdentifier(_ character: Character) throws -> TokenizerState {
         
         print(#function, character)
         
         if character.isApostrophe || character.isQuotationMark  {
-            return .afterurireference
+            return .aftersystemidentifier
         }
     
         if let token = self.token as? DocumentToken {
             
-            token.systemId?.append(character)
+            if var systemId = token.systemId {
+                
+                systemId.append(character)
+                
+                token.systemId = systemId
+                
+            } else {
+                token.systemId = String(character)
+            }
             
             self.token = token
         }
         
-        return .urireference
+        return .systemidentifier
     }
     
-    /// Consumes the character after the uri reference
+    /// Consumes the character after the system identifier
     ///
     /// - Parameter character: The next input character
     /// - Throws:
     /// - Returns: A new tokenizer state
-    private func consumeAfterUriReference(_ character: Character) throws -> TokenizerState {
+    private func consumeAfterSystemIdentifier(_ character: Character) throws -> TokenizerState {
         
         print(#function, character)
         
@@ -895,3 +919,4 @@ public class Tokenizer {
         throw TokenizerError.invalidCharacter(character)
     }
 }
+
