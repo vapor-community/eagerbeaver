@@ -88,6 +88,16 @@ internal class Tokenizer {
         case aftersystemidentifier
     }
     
+    /// A enumeration of different level of the logging
+    ///
+    /// None is the initial state.
+    internal enum LogLevel {
+        
+        case none
+        case information
+        case debug
+    }
+    
     /// The collection of the emitted tokens
     private var tokens: [HtmlToken]
     
@@ -100,15 +110,31 @@ internal class Tokenizer {
     /// The  state of the tokenizer
     private var state: TokenizerState
     
+    /// The level of logging
+    private var level: LogLevel
+    
     private var rounds: Int = 0
     
     private var temp: String = ""
     
     /// Creates a tokenizer
-    internal init(state: TokenizerState = .data) {
+    internal init(state: TokenizerState = .data, log level: LogLevel = .none) {
         
-        self.tokens = .init()
+        self.tokens = []
         self.state = state
+        self.level = level
+    }
+    
+    /// Logs the steps of the tokenizer depending on the log level
+    private func log(_ message: Any...) {
+        
+        switch self.level {
+        case .information:
+            print(message)
+            
+        default:
+            break
+        }
     }
     
     /// Resets the buffer
@@ -121,7 +147,7 @@ internal class Tokenizer {
     /// Emits the temporary token to the token collection
     private func emit() throws {
         
-        print(#function)
+        self.log(#function)
         
         if let token = self.token {
             self.tokens.append(token)
@@ -136,7 +162,7 @@ internal class Tokenizer {
     /// - Throws:
     private func emit(token: HtmlToken) throws {
         
-        print(#function)
+        self.log(#function)
         
         self.tokens.append(token)
     }
@@ -147,7 +173,7 @@ internal class Tokenizer {
     /// - Throws:
     internal func consume(_ content: String) throws -> [HtmlToken] {
         
-        print(#function)
+        self.log(#function)
         
         for character in content {
             
@@ -239,7 +265,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeData(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isLessThanSign {
             return .starttag
@@ -257,7 +283,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeStartTag(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isGreaterThanSign {
             throw TokenizerError.missingTagName
@@ -288,7 +314,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeTagName(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isWhitespace || character.isNewline {
             return .beforeattributename
@@ -327,7 +353,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeEndTag(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isGreaterThanSign {
             throw TokenizerError.missingTagName
@@ -350,7 +376,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeSelfClosingTag(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isGreaterThanSign {
             
@@ -369,7 +395,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeBeforeAttributeName(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isLetter {
             
@@ -388,7 +414,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeAttributeName(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isLetter {
             
@@ -416,7 +442,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeBeforeAttributeValue(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isApostrophe || character.isQuotationMark {
             return .attributevalue
@@ -432,7 +458,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeAttributeValue(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isLetter {
             
@@ -473,7 +499,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeAfterAttributeValue(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isSolidus {
             return .selfclosing
@@ -496,7 +522,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeMarkup(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isLetter {
             
@@ -524,7 +550,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeCommentStart(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isHyphenMinus {
             return .commentstartdash
@@ -544,7 +570,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeCommentStartDash(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isWhitespace || character.isNewline {
             return .comment
@@ -572,7 +598,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeComment(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isHyphenMinus {
             return .commentenddash
@@ -595,7 +621,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeCommentEndDash(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isHyphenMinus {
             return .commentend
@@ -615,7 +641,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeCommentEnd(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isGreaterThanSign {
             
@@ -634,7 +660,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeDoctype(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isGreaterThanSign {
             throw TokenizerError.missingRootDeclaration
@@ -671,7 +697,7 @@ internal class Tokenizer {
     /// - Throws:
     private func checkDoctype() throws {
         
-        print(#function)
+        self.log(#function)
         
         if self.temp.uppercased() != "DOCTYPE" {
             throw TokenizerError.invalidDoctype(self.temp)
@@ -685,7 +711,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeRootDeclaration(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isGreaterThanSign {
             
@@ -725,7 +751,7 @@ internal class Tokenizer {
     /// - Throws:
     private func checkRootDeclaration() throws {
         
-        print(#function)
+        self.log(#function)
         
         if self.temp.uppercased() != "HTML" {
             throw TokenizerError.invalidRootDeclaration(self.temp)
@@ -739,7 +765,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeKeyword(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isGreaterThanSign {
             throw TokenizerError.missingPublicIdentifier
@@ -776,7 +802,7 @@ internal class Tokenizer {
     /// - Throws:
     private func checkKeyword() throws {
         
-        print(#function)
+        self.log(#function)
         
         if self.temp.uppercased() != "PUBLIC" {
             throw TokenizerError.invalidKeyword(self.temp)
@@ -790,7 +816,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeBeforePublicIdentifier(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isApostrophe || character.isQuotationMark  {
             return .publicidentifier
@@ -806,7 +832,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumePublicIdentifier(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isApostrophe || character.isQuotationMark  {
             return .afterpublicidentifier
@@ -837,7 +863,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeAfterPublicIdentifier(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isWhitespace || character.isNewline {
             return .beforesystemidentifier
@@ -857,7 +883,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeBeforeSystemIdentifier(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isApostrophe || character.isQuotationMark  {
             return .systemidentifier
@@ -873,7 +899,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeSystemIdentifier(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isApostrophe || character.isQuotationMark  {
             return .aftersystemidentifier
@@ -904,7 +930,7 @@ internal class Tokenizer {
     /// - Returns: A new tokenizer state
     private func consumeAfterSystemIdentifier(_ character: Character) throws -> TokenizerState {
         
-        print(#function, character)
+        self.log(#function, character)
         
         if character.isGreaterThanSign {
             

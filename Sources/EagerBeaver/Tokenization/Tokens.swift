@@ -24,8 +24,6 @@ internal class TagToken: HtmlToken {
     
     /// The attributes of the tag
     internal var attributes: [HtmlAttribute]?
-
-    internal var selfClosing: Bool = false
     
     /// Creates a tag token
     internal init(name: String, kind: TokenKind) {
