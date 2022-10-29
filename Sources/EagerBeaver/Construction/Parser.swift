@@ -114,21 +114,8 @@ internal class Parser {
     /// - Returns: A new tokenizer state
     private func processInitial(_ token: HtmlToken) throws -> InsertionMode {
         
-        print(#function, token.kind)
+        print(#function)
         
-        switch token.kind {
-            
-        case .character:
-            return .initial
-            
-        case .comment:
-            return .initial
-            
-        case .document:
-            return .initial
-            
-        default:
-            return .initial
-        }
+        return .initial
     }
 }

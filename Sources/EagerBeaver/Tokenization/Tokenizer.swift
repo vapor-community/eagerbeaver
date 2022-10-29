@@ -86,6 +86,7 @@ internal class Tokenizer {
         case beforesystemidentifier
         case systemidentifier
         case aftersystemidentifier
+        case text
     }
     
     /// A enumeration of different level of the logging
@@ -104,14 +105,14 @@ internal class Tokenizer {
     /// The temporary token
     private var token: HtmlToken?
     
-    /// The temporary attribute
-    private var attribute: HtmlAttribute?
-    
     /// The  state of the tokenizer
     private var state: TokenizerState
     
     /// The level of logging
     private var level: LogLevel
+    
+    /// The position of the tokenizer
+    private var position: Int
     
     private var rounds: Int = 0
     
@@ -123,6 +124,7 @@ internal class Tokenizer {
         self.tokens = []
         self.state = state
         self.level = level
+        self.position = 0
     }
     
     /// Logs the steps of the tokenizer depending on the log level
@@ -130,7 +132,10 @@ internal class Tokenizer {
         
         switch self.level {
         case .information:
-            print(message)
+            print("Message:", message)
+            
+        case .debug:
+            print("Position:", self.position, "Message:", message)
             
         default:
             break
@@ -157,9 +162,6 @@ internal class Tokenizer {
     }
     
     /// Emits a token to the token collection
-    ///
-    /// - Parameter token: The token
-    /// - Throws:
     private func emit(token: HtmlToken) throws {
         
         self.log(#function)
@@ -168,14 +170,13 @@ internal class Tokenizer {
     }
     
     /// Consumes the content by the state the tokenizer is currently in
-    ///
-    /// - Parameter content: The html string
-    /// - Throws:
     internal func consume(_ content: String) throws -> [HtmlToken] {
         
         self.log(#function)
         
-        for character in content {
+        for (index, character) in content.enumerated() {
+            
+            self.position = index
             
             switch self.state {
             case .starttag:
@@ -250,6 +251,9 @@ internal class Tokenizer {
             case .aftersystemidentifier:
                 self.state = try consumeAfterSystemIdentifier(character)
                 
+            case .text:
+                self.state = try consumeText(character)
+                
             default:
                 self.state = try consumeData(character)
             }
@@ -259,10 +263,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeData(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -271,16 +271,10 @@ internal class Tokenizer {
             return .starttag
         }
         
-        try self.emit(token: CharacterToken(data: String(character)))
-        
         return .data
     }
     
     /// Consumes the character of the start tag
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeStartTag(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -308,15 +302,14 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the tag name
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeTagName(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
         
         if character.isWhitespace || character.isNewline {
+            
+            try self.emit()
+            
             return .beforeattributename
         }
         
@@ -328,7 +321,7 @@ internal class Tokenizer {
             
             try self.emit()
             
-            return .data
+            return .text
         }
         
         if character.isLetter || character.isNumber {
@@ -347,10 +340,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the end tag
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeEndTag(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -370,10 +359,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the self closing tag.
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeSelfClosingTag(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -389,17 +374,13 @@ internal class Tokenizer {
     }
     
     /// Consumes the character before the attribute name
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeBeforeAttributeName(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
         
         if character.isLetter {
             
-            self.attribute = HtmlAttribute(name: String(character), value: "")
+            self.token = AttributeToken(name: String(character), value: "")
             
             return .attributename
         }
@@ -408,21 +389,17 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the attribute name
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeAttributeName(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
         
         if character.isLetter {
             
-            if let attribute = self.attribute {
+            if let token = self.token as? AttributeToken {
                 
-                attribute.name.append(character)
+                token.name.append(character)
                 
-                self.attribute = attribute
+                self.token = token
             }
             
             return .attributename
@@ -436,10 +413,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character before the attribute value
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeBeforeAttributeValue(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -452,21 +425,17 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the attribute value
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeAttributeValue(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
         
         if character.isLetter {
             
-            if let attribute = self.attribute {
+            if let token = self.token as? AttributeToken {
                 
-                attribute.value.append(character)
+                token.value.append(character)
                 
-                self.attribute = attribute
+                self.token = token
             }
             
             return .attributevalue
@@ -474,17 +443,7 @@ internal class Tokenizer {
         
         if character.isApostrophe || character.isQuotationMark {
             
-            if let token = self.token as? TagToken {
-                
-                if let attribute = self.attribute {
-                    
-                    token.upsert(attribute)
-                    
-                    self.attribute = nil
-                }
-                
-                self.token = token
-            }
+            try self.emit()
             
             return .afterattributevalue
         }
@@ -493,10 +452,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character after attribute value
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeAfterAttributeValue(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -506,9 +461,6 @@ internal class Tokenizer {
         }
         
         if character.isGreaterThanSign {
-            
-            try self.emit()
-            
             return .data
         }
         
@@ -516,10 +468,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the markup
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeMarkup(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -544,10 +492,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character before the comment
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeCommentStart(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -564,10 +508,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the comment dash
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeCommentStartDash(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -592,10 +532,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the comment
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeComment(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -615,10 +551,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the comment dash
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeCommentEndDash(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -635,10 +567,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character after the comment
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeCommentEnd(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -654,10 +582,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the document type
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeDoctype(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -693,8 +617,6 @@ internal class Tokenizer {
     }
     
     /// Checks the document type
-    ///
-    /// - Throws:
     private func checkDoctype() throws {
         
         self.log(#function)
@@ -705,10 +627,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the root declaration
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeRootDeclaration(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -747,8 +665,6 @@ internal class Tokenizer {
     }
     
     /// Checks the root declaration
-    ///
-    /// - Throws:
     private func checkRootDeclaration() throws {
         
         self.log(#function)
@@ -759,10 +675,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the keyword
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeKeyword(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -798,8 +710,6 @@ internal class Tokenizer {
     }
     
     /// Checks the keyword
-    ///
-    /// - Throws:
     private func checkKeyword() throws {
         
         self.log(#function)
@@ -810,10 +720,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character before the public identifier
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeBeforePublicIdentifier(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -826,10 +732,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the public identifier
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumePublicIdentifier(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -857,10 +759,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character after the public identifier
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeAfterPublicIdentifier(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -877,10 +775,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character before the system identifier
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeBeforeSystemIdentifier(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -893,10 +787,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character of the system identifier
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeSystemIdentifier(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -924,10 +814,6 @@ internal class Tokenizer {
     }
     
     /// Consumes the character after the system identifier
-    ///
-    /// - Parameter character: The next input character
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func consumeAfterSystemIdentifier(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
@@ -939,6 +825,36 @@ internal class Tokenizer {
             return .data
         }
     
+        throw TokenizerError.invalidCharacter(character)
+    }
+    
+    /// Consumes the character when its text
+    private func consumeText(_ character: Character) throws -> TokenizerState {
+        
+        self.log(#function, character)
+        
+        if character.isLessThanSign {
+            
+            try self.emit()
+            
+            return .starttag
+        }
+        
+        if character.isASCII {
+            
+            if let token = self.token as? TextToken {
+                
+                token.data.append(character)
+                
+                self.token = token
+                
+            } else {
+                self.token = TextToken(data: String(character))
+            }
+            
+            return .text
+        }
+        
         throw TokenizerError.invalidCharacter(character)
     }
 }

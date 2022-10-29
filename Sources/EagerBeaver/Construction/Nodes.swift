@@ -11,7 +11,6 @@ internal class DocumentNode: HtmlNode {
     internal init(token: DocumentToken) {
     
         super.init(kind: .document)
-        self.name = token.name
         self.publicId = token.publicId
         self.systemId = token.systemId
     }

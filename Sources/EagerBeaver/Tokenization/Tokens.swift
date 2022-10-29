@@ -1,50 +1,37 @@
+/// A instance for a token
+internal class HtmlToken {}
+
 /// A instance for the document type
 internal class DocumentToken: HtmlToken {
-    
-    /// The name of the tag
-    internal var name: String?
     
     /// The public identifier
     internal var publicId: String?
     
     /// The system identifier
     internal var systemId: String?
-    
-    /// Creates a document token
-    internal init() {
-        super.init(kind: .document)
-    }
 }
 
 /// A instance for the start and end tag
 internal class TagToken: HtmlToken {
     
+    /// The different kinds of a tag
+    internal enum TagKind {
+        
+        case starttag
+        case endtag
+    }
+    
     /// The name of the tag
     internal var name: String
     
-    /// The attributes of the tag
-    internal var attributes: [HtmlAttribute]?
+    /// The kind of the tag
+    internal var kind: TagKind
     
     /// Creates a tag token
-    internal init(name: String, kind: TokenKind) {
+    internal init(name: String, kind: TagKind) {
         
         self.name = name
-        super.init(kind: kind)
-    }
-    
-    /// Upserts the attribute to the attributes collection
-    internal func upsert(_ attribute: HtmlAttribute) {
-        
-        if var attributes = self.attributes {
-            
-            attributes.append(attribute)
-            
-            self.attributes = attributes
-            
-        } else {
-            
-            self.attributes = [attribute]
-        }
+        self.kind = kind
     }
 }
 
@@ -58,12 +45,11 @@ internal class CommentToken: HtmlToken {
     internal init(data: String) {
         
         self.data = data
-        super.init(kind: .comment)
     }
 }
 
 /// A instance for any other content
-internal class CharacterToken: HtmlToken {
+internal class TextToken: HtmlToken {
     
     /// The content of the token
     internal var data: String
@@ -72,7 +58,26 @@ internal class CharacterToken: HtmlToken {
     internal init(data: String) {
         
         self.data = data
-        super.init(kind: .character)
     }
 }
+
+/// A instance for any other content
+internal class AttributeToken: HtmlToken {
+    
+    /// The key of the token
+    internal var name: String
+    
+    /// The value of the token
+    internal var value: String
+    
+    /// Creates a character token
+    internal init(name: String, value: String) {
+        
+        self.name = name
+        self.value = value
+    }
+}
+
+
+
 
