@@ -16,57 +16,42 @@ final class ConstructionTests: XCTestCase {
         </html>
         """
         
-        XCTAssertNoThrow(try Parser.shared.process(html))
+        let tokens = try Tokenizer().consume(html)
+        
+        XCTAssertNoThrow(try Parser(log: .information).process(tokens))
     }
     
-    // Tests parsing the head scope
-    func testHeadScope() throws {
+    // Tests parsing a default document without a document token
+    func testDefaultDocumentWithoutDoctype() throws {
         
         let html = """
+        <html lang="en">\
         <head>\
         <title>Document</title>\
-        </head>
+        </head>\
+        <body></body>\
+        </html>
         """
         
-        XCTAssertNoThrow(try Parser.shared.process(html))
+        let tokens = try Tokenizer().consume(html)
+        
+        XCTAssertThrowsError(try Parser(log: .information).process(tokens))
     }
     
-    // Tests parsing the body scope
-    func testBodyScope() throws {
+    // Tests parsing a default document with an invalid token
+    func testDefaultDocumentWithInvalidToken() throws {
         
         let html = """
-        <body>\
-        <h1>Body</h1>\
-        </body>
+        <!DOCTYPE html>\
+        <head>\
+        <title>Document</title>\
+        </head>\
+        <body></body>\
+        </html>
         """
         
-        XCTAssertNoThrow(try Parser.shared.process(html))
-    }
-    
-    // Tests parsing the script scope
-    func testTableScope() throws {
+        let tokens = try Tokenizer().consume(html)
         
-        let html = """
-        <table>\
-        <tr>\
-        <td>Column</td>\
-        <td>Column</td>\
-        </tr>\
-        </table>
-        """
-        
-        XCTAssertNoThrow(try Parser.shared.process(html))
-    }
-    
-    // Tests parsing the script scope
-    func testScriptScope() throws {
-        
-        let html = """
-        <script>\
-        document.getElementById("greeting").innerHTML = "Hello World!"\
-        </script>
-        """
-        
-        XCTAssertNoThrow(try Parser.shared.process(html))
+        XCTAssertThrowsError(try Parser(log: .information).process(tokens))
     }
 }

@@ -4,13 +4,26 @@ internal class Parser {
     /// A enumeration of possible errors
     internal enum ParserError: Error {
         
-        case error
-        
+        case missingHeadTag
+        case missingHtmlTag
+        case missingDoctypeTag
+        case invalidToken
+    
         internal var description: String {
             
             switch self {
-            case .error:
-                return "Error."
+            case .missingHeadTag:
+                return "Missing head tag."
+                
+            case .missingHtmlTag:
+                return "Missing html tag."
+                
+            case .missingDoctypeTag:
+                return "Missing doctype tag."
+                
+            case .invalidToken:
+                return "Invalid token."
+                
             }
         }
     }
@@ -28,94 +41,309 @@ internal class Parser {
         case afterbody
     }
     
-    /// The type of the documents content
-    private var type: DocumentNode?
+    /// A enumeration of different level of the logging
+    ///
+    /// None is the initial state.
+    internal enum LogLevel {
+        
+        case none
+        case information
+        case debug
+    }
+    
+    /// The tree with nodes
+    private var tree: [HtmlNode]
     
     /// The collection of nodes
-    private var nodes: [HtmlNode]
+    private var nodes: [ElementNode]
     
     /// The  state of the tokenizer
     private var mode: InsertionMode
     
+    /// The level of logging
+    private var level: LogLevel
+    
     /// Creates a parser
-    private init() {
+    internal init(mode: InsertionMode = .initial, log level: LogLevel = .none) {
         
-        self.nodes = .init()
-        self.mode = .initial
+        self.tree = []
+        self.nodes = []
+        self.mode = mode
+        self.level = level
     }
     
-    /// Access the parser
-    internal static let shared = Parser()
+    /// Logs the steps of the tokenizer depending on the log level
+    private func log(_ message: Any...) {
+        
+        switch self.level {
+        case .information:
+            print("Message:", message)
+            
+        default:
+            break
+        }
+    }
     
     /// Inserts the node into the nodes collection
     private func insert(node: HtmlNode) {
         
-        print(#function)
+        self.log(#function)
         
-        self.nodes.append(node)
+        self.tree.append(node)
     }
     
-    /// Normalizes the content before processing
-    private func normalize(_ content: String) -> String {
-        
-        print(#function)
-        
-        return content.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
+    /// Pops the last node
+    private func pop() {
     
-    /// Processes the content by the mode the parser is currently in
-    ///
-    /// - Parameter content: The html string
-    /// - Throws:
-    internal func process(_ content: String) throws {
+        self.log(#function)
         
-        print(#function)
+        let last = self.nodes.removeLast()
         
-        let tokens = try Tokenizer().consume(normalize(content))
-        
-        if !tokens.isEmpty {
+        if let penultimate = self.nodes.last {
+            penultimate.add(child: last)
             
-            for token in tokens {
-                
-                switch self.mode {
-                case .beforehtml:
-                    break
-                    
-                case .beforehead:
-                    break
-                    
-                case .inhead:
-                    break
-                    
-                case .afterhead:
-                    break
-                    
-                case .inbody:
-                    break
-                    
-                case .text:
-                    break
-                    
-                case .afterbody:
-                    break
-                    
-                default:
-                    self.mode = try processInitial(token)
-                }
-            }
+        } else {
+            self.insert(node: last)
         }
     }
     
+    /// Processes the content by the mode the parser is currently in
+    internal func process(_ tokens: [HtmlToken]) throws -> [HtmlNode] {
+        
+        self.log(#function)
+        
+        for token in tokens {
+            
+            switch self.mode {
+            case .beforehtml:
+                self.mode = try processBeforeHtml(token)
+                
+            case .beforehead:
+                self.mode = try processBeforeHead(token)
+                
+            case .inhead:
+                self.mode = try processInHead(token)
+                
+            case .afterhead:
+                self.mode = try processAfterHead(token)
+                
+            case .inbody:
+                self.mode = try processInBody(token)
+                
+            case .text:
+                self.mode = try processText(token)
+                
+            case .afterbody:
+                self.mode = try processAfterBody(token)
+                
+            default:
+                self.mode = try processInitial(token)
+            }
+        }
+        
+        return self.tree
+    }
     
     /// Processes the token
-    ///
-    /// - Parameter token: The next token
-    /// - Throws:
-    /// - Returns: A new tokenizer state
     private func processInitial(_ token: HtmlToken) throws -> InsertionMode {
         
-        print(#function)
+        self.log(#function)
         
-        return .initial
+        if let document = token as? DocumentToken {
+            
+            self.insert(node: DefinitionNode(token: document))
+            
+            return .beforehtml
+        }
+        
+        throw ParserError.invalidToken
+    }
+    
+    /// Processes the token
+    private func processBeforeHtml(_ token: HtmlToken) throws -> InsertionMode {
+        
+        self.log(#function)
+        
+        if let tag = token as? TagToken {
+
+            if tag.name == "html" {
+                
+                switch tag.kind {
+                case .starttag:
+                    self.nodes.append(ElementNode(token: tag))
+                    
+                case .endtag:
+                    fatalError()
+                }
+                
+            } else {
+                throw ParserError.missingHtmlTag
+            }
+            
+            return .beforehead
+        }
+        
+        throw ParserError.invalidToken
+    }
+    
+    /// Processes the token
+    private func processBeforeHead(_ token: HtmlToken) throws -> InsertionMode {
+        
+        self.log(#function)
+        
+        if let tag = token as? TagToken {
+        
+            if tag.name == "head" {
+                
+                switch tag.kind {
+                case .starttag:
+                    self.nodes.append(ElementNode(token: tag))
+                    
+                case .endtag:
+                    fatalError()
+                }
+                
+            } else {
+               throw ParserError.missingHeadTag
+            }
+            
+            return .inhead
+        }
+        
+        if let attribute = token as? AttributeToken {
+            
+            if let last = self.nodes.last {
+                last.add(attribute: AttributeNode(token: attribute))
+            }
+            
+            return .beforehead
+        }
+        
+        throw ParserError.invalidToken
+    }
+    
+    /// Processes the token
+    private func processInHead(_ token: HtmlToken) throws -> InsertionMode {
+        
+        self.log(#function)
+        
+        if let comment = token as? CommentToken {
+            
+            if let last = self.nodes.last {
+                last.add(child: CommentNode(token: comment))
+            }
+            
+            return .inhead
+        }
+        
+        if let tag = token as? TagToken {
+            
+            switch tag.kind {
+            case .starttag:
+                self.nodes.append(ElementNode(token: tag))
+                
+            case .endtag:
+
+                self.pop()
+                
+                if tag.name == "head" {
+                    return .afterhead
+                }
+            }
+            
+            return .inhead
+        }
+        
+        if let text = token as? TextToken {
+            
+            if let last = self.nodes.last {
+                last.add(child: TextNode(token: text))
+            }
+            
+            return .inhead
+        }
+        
+        if let attribute = token as? AttributeToken {
+            
+            if let last = self.nodes.last {
+                last.add(attribute: AttributeNode(token: attribute))
+            }
+            
+            return .inhead
+        }
+        
+        throw ParserError.invalidToken
+    }
+    
+    /// Processes the token
+    private func processAfterHead(_ token: HtmlToken) throws -> InsertionMode {
+        
+        self.log(#function)
+        
+        if let comment = token as? CommentToken {
+            
+            if let last = self.nodes.last {
+                last.add(child: CommentNode(token: comment))
+            }
+            
+            return .afterhead
+        }
+        
+        if let text = token as? TextToken {
+            
+            if let last = self.nodes.last {
+                last.add(child: TextNode(token: text))
+            }
+            
+            return .afterhead
+        }
+        
+        if let tag = token as? TagToken {
+            
+            switch tag.kind {
+            case .starttag:
+                self.nodes.append(ElementNode(token: tag))
+                
+            case .endtag:
+                self.pop()
+            }
+            
+            return .afterhead
+        }
+        
+        if let attribute = token as? AttributeToken {
+            
+            if let last = self.nodes.last {
+                last.add(attribute: AttributeNode(token: attribute))
+            }
+            
+            return .afterhead
+        }
+        
+        throw ParserError.invalidToken
+    }
+    
+    /// Processes the token
+    private func processInBody(_ token: HtmlToken) throws -> InsertionMode {
+        
+        self.log(#function)
+        
+        return .inbody
+    }
+    
+    /// Processes the token
+    private func processText(_ token: HtmlToken) throws -> InsertionMode {
+        
+        self.log(#function)
+        
+        return .text
+    }
+    
+    /// Processes the token
+    private func processAfterBody(_ token: HtmlToken) throws -> InsertionMode {
+        
+        self.log(#function)
+        
+        return .afterbody
     }
 }

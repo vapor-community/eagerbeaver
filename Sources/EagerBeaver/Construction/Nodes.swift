@@ -1,16 +1,14 @@
-internal class DocumentNode: HtmlNode {
+internal class HtmlNode {}
+
+internal class DefinitionNode: HtmlNode {
     
     internal var publicId: String?
     
     internal var systemId: String?
     
-    internal init() {
-        super.init(kind: .document)
-    }
+    internal convenience init(token: DocumentToken) {
     
-    internal init(token: DocumentToken) {
-    
-        super.init(kind: .document)
+        self.init()
         self.publicId = token.publicId
         self.systemId = token.systemId
     }
@@ -18,14 +16,46 @@ internal class DocumentNode: HtmlNode {
 
 internal class ElementNode: HtmlNode {
     
-    internal init() {
-        super.init(kind: .element)
+    internal var name: String
+    
+    internal var attributes: [AttributeNode]?
+    
+    internal var children: [HtmlNode]?
+    
+    internal init(name: String) {
+        
+        self.name = name
     }
     
-    internal init(token: TagToken) {
+    internal convenience init(token: TagToken) {
         
-        super.init(kind: .element)
-        self.name = token.name
+        self.init(name: token.name)
+    }
+    
+    internal func add(child: HtmlNode) {
+        
+        if var children = self.children {
+            
+            children.append(child)
+            
+            self.children = children
+            
+        } else {
+            self.children = [child]
+        }
+    }
+    
+    internal func add(attribute: AttributeNode) {
+        
+        if var attributes = attributes {
+            
+            attributes.append(attribute)
+            
+            self.attributes = attributes
+            
+        } else {
+            self.attributes = [attribute]
+        }
     }
 }
 
@@ -33,14 +63,39 @@ internal class CommentNode: HtmlNode {
     
     internal var data: String?
     
-    internal init() {
-        super.init(kind: .comment)
-    }
-    
-    internal init(token: CommentToken) {
+    internal convenience init(token: CommentToken) {
         
-        super.init(kind: .comment)
+        self.init()
+        self.data = token.data
+    }
+}
+
+internal class TextNode: HtmlNode {
+    
+    internal var data: String?
+    
+    internal convenience init(token: TextToken) {
+    
+        self.init()
         self.data = token.data
     }
     
+}
+
+internal class AttributeNode: HtmlNode {
+    
+    internal var name: String
+    
+    internal var value: String?
+    
+    internal init(name: String) {
+        
+        self.name = name
+    }
+    
+    internal convenience init(token: AttributeToken) {
+        
+        self.init(name: token.name)
+        self.value = token.value
+    }
 }
