@@ -38,4 +38,19 @@ public class HtmlDocument {
             self.root = child
         }
     }
+    
+    internal func render() -> String {
+        
+        var output = ""
+        
+        if let definition = definition {
+            output += definition.render()
+        }
+        
+        if let root = root {
+            output += root.render()
+        }
+        
+        return output
+    }
 }

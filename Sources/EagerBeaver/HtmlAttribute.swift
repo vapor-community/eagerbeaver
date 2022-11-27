@@ -19,4 +19,8 @@ public class HtmlAttribute {
         self.init(name: node.name)
         self.value = node.value
     }
+    
+    internal func render() -> String {
+        return " \(name)=\"\(value ?? "")\""
+    }
 }

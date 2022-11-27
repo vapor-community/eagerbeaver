@@ -102,4 +102,41 @@ public class HtmlElement {
             self.attributes = [attribute]
         }
     }
+    
+    internal func render() -> String {
+        
+        var output = ""
+        
+        switch kind {
+        case .comment:
+            output += "<!--\(value ?? "")-->"
+            
+        case .element:
+            
+            output += "<\(name ?? "")"
+            
+            if let attributes = attributes {
+                
+                for attribute in attributes {
+                    output += attribute.render()
+                }
+            }
+            
+            output += ">"
+            
+            if let children = children {
+                
+                for child in children {
+                    output += child.render()
+                }
+            }
+            
+            output += "</\(name ?? "")>"
+            
+        case .text:
+            output += "\(value ?? "")"
+        }
+        
+        return output
+    }
 }

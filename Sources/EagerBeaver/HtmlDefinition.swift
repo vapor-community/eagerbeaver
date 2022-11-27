@@ -17,4 +17,8 @@ public class HtmlDefinition {
         self.publicId = node.publicId
         self.systemId = node.systemId
     }
+    
+    internal func render() -> String {
+        return "<!DOCTYPE HTML PUBLIC \"\(publicId ?? "")\" \"\(systemId ?? "")\">"
+    }
 }
