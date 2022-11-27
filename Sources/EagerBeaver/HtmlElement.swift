@@ -52,6 +52,13 @@ public class HtmlElement {
                 }
             }
         }
+        
+        if let attributes = node.attributes {
+            
+            for attribute in attributes {
+                self.add(attribute: HtmlAttribute(node: attribute))
+            }
+        }
     }
     
     /// Maps a comment node

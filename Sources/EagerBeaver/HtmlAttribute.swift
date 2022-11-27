@@ -17,6 +17,6 @@ public class HtmlAttribute {
     internal convenience init(node: AttributeNode) {
         
         self.init(name: node.name)
-        self.value = value
+        self.value = node.value
     }
 }
