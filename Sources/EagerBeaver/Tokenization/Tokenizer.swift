@@ -429,7 +429,7 @@ internal class Tokenizer {
         
         self.log(#function, character)
         
-        if character.isLetter {
+        if character.isLetter || character.isHyphenMinus || character.isNumber {
             
             if let token = self.token as? AttributeToken {
                 

@@ -108,6 +108,12 @@ final class TokenizerTests: XCTestCase {
         
         // ...with double quotation mark and no value
         XCTAssertNoThrow(try Tokenizer(log: .information).consume("<html name=\"\">"))
+        
+        // ...with a value, containing a number
+        XCTAssertNoThrow(try Tokenizer(log: .information).consume("<html name=\"8\">"))
+        
+        // ...with a value, containing an hyphen
+        XCTAssertNoThrow(try Tokenizer(log: .information).consume("<html name=\"-\">"))
     }
     
     // Tests consuming a whole element
