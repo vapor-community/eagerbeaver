@@ -132,7 +132,7 @@ final class TokenizerTests: XCTestCase {
     func testElement() throws {
         
         // ...with content
-        XCTAssertNoThrow(try Tokenizer(log: .information).consume("<title>content</tile>"))
+        XCTAssertNoThrow(try Tokenizer(log: .information).consume("<title>content</title>"))
         
         // ...with content seperated by a whitespace
         XCTAssertNoThrow(try Tokenizer(log: .information).consume("<title>content content</title>"))

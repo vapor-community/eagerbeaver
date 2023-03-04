@@ -271,6 +271,21 @@ internal class Tokenizer {
             return .starttag
         }
         
+        if character.isLetter {
+            
+            if let token = self.token as? TextToken {
+                
+                token.data.append(character)
+                
+                self.token = token
+                
+            } else {
+                self.token = TextToken(data: String(character))
+            }
+            
+            return .text
+        }
+        
         return .data
     }
     
@@ -321,7 +336,7 @@ internal class Tokenizer {
             
             try self.emit()
             
-            return .text
+            return .data
         }
         
         if character.isLetter || character.isNumber {
