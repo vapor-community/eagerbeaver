@@ -20,6 +20,9 @@ final class TokenizerTests: XCTestCase {
         
         // ...when the tag name is missing
         XCTAssertThrowsError(try Tokenizer(log: .information).consume("<>"))
+        
+        // ...when the tag name contains a number
+        XCTAssertNoThrow(try Tokenizer(log: .information).consume("<h1>"))
     }
     
     // Tests consuming a end tag
@@ -30,6 +33,9 @@ final class TokenizerTests: XCTestCase {
         
         // ...when the tag name is missing
         XCTAssertThrowsError(try Tokenizer(log: .information).consume("</>"))
+        
+        // ...when the tag name contains a number
+        XCTAssertNoThrow(try Tokenizer(log: .information).consume("</h1>"))
     }
     
     // Tests consuming a doctype
@@ -114,6 +120,12 @@ final class TokenizerTests: XCTestCase {
         
         // ...with a value, containing an hyphen
         XCTAssertNoThrow(try Tokenizer(log: .information).consume("<html name=\"-\">"))
+        
+        // ...with a name, containing an hyphen
+        XCTAssertNoThrow(try Tokenizer(log: .information).consume("<html name-name=\"\">"))
+        
+        // ...with a single name
+        XCTAssertNoThrow(try Tokenizer(log: .information).consume("<html name>"))
     }
     
     // Tests consuming a whole element

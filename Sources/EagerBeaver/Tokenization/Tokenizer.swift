@@ -393,7 +393,14 @@ internal class Tokenizer {
         
         self.log(#function, character)
         
-        if character.isLetter {
+        if character.isGreaterThanSign {
+            
+            try self.emit()
+            
+            return .data
+        }
+        
+        if character.isLetter || character.isHyphenMinus {
             
             if let token = self.token as? AttributeToken {
                 
@@ -429,7 +436,14 @@ internal class Tokenizer {
         
         self.log(#function, character)
         
-        if character.isLetter || character.isHyphenMinus || character.isNumber {
+        if character.isApostrophe || character.isQuotationMark {
+            
+            try self.emit()
+            
+            return .afterattributevalue
+        }
+        
+        if character.isASCII {
             
             if let token = self.token as? AttributeToken {
                 
@@ -441,13 +455,6 @@ internal class Tokenizer {
             return .attributevalue
         }
         
-        if character.isApostrophe || character.isQuotationMark {
-            
-            try self.emit()
-            
-            return .afterattributevalue
-        }
-        
         throw TokenizerError.invalidCharacter(character)
     }
     
@@ -455,6 +462,10 @@ internal class Tokenizer {
     private func consumeAfterAttributeValue(_ character: Character) throws -> TokenizerState {
         
         self.log(#function, character)
+        
+        if character.isWhitespace {
+            return .beforeattributename
+        }
         
         if character.isSolidus {
             return .selfclosing
