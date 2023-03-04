@@ -4,14 +4,19 @@ internal class Parser {
     /// A enumeration of possible errors
     internal enum ParserError: Error {
         
+        case missingBodyTag
         case missingHeadTag
         case missingHtmlTag
         case missingDoctypeTag
         case invalidToken
+        case invalidTag
     
         internal var description: String {
             
             switch self {
+            case .missingBodyTag:
+                return "Missing body tag."
+                
             case .missingHeadTag:
                 return "Missing head tag."
                 
@@ -24,6 +29,8 @@ internal class Parser {
             case .invalidToken:
                 return "Invalid token."
                 
+            case .invalidTag:
+                return "Invalid tag."
             }
         }
     }
@@ -84,7 +91,7 @@ internal class Parser {
         }
     }
     
-    /// Inserts the node into the nodes collection
+    /// Inserts the node into the tree
     private func insert(node: HtmlNode) {
         
         self.log(#function)
@@ -173,7 +180,7 @@ internal class Parser {
                     self.nodes.append(ElementNode(token: tag))
                     
                 case .endtag:
-                    fatalError()
+                    throw ParserError.invalidTag
                 }
                 
             } else {
@@ -200,7 +207,7 @@ internal class Parser {
                     self.nodes.append(ElementNode(token: tag))
                     
                 case .endtag:
-                    fatalError()
+                    throw ParserError.invalidTag
                 }
                 
             } else {
@@ -240,7 +247,12 @@ internal class Parser {
             
             switch tag.kind {
             case .starttag:
+                
                 self.nodes.append(ElementNode(token: tag))
+                
+                if tag.name == "meta" || tag.name == "base" || tag.name == "link" {
+                    self.pop()
+                }
                 
             case .endtag:
 
@@ -300,15 +312,21 @@ internal class Parser {
         
         if let tag = token as? TagToken {
             
-            switch tag.kind {
-            case .starttag:
-                self.nodes.append(ElementNode(token: tag))
+            if tag.name == "body" {
                 
-            case .endtag:
-                self.pop()
+                switch tag.kind {
+                case .starttag:
+                    self.nodes.append(ElementNode(token: tag))
+                    
+                case .endtag:
+                    throw ParserError.invalidTag
+                }
+                
+            } else {
+               throw ParserError.missingBodyTag
             }
             
-            return .afterhead
+            return .inbody
         }
         
         if let attribute = token as? AttributeToken {
@@ -328,7 +346,57 @@ internal class Parser {
         
         self.log(#function)
         
-        return .inbody
+        if let comment = token as? CommentToken {
+            
+            if let last = self.nodes.last {
+                last.add(child: CommentNode(token: comment))
+            }
+            
+            return .inbody
+        }
+        
+        if let text = token as? TextToken {
+            
+            if let last = self.nodes.last {
+                last.add(child: TextNode(token: text))
+            }
+            
+            return .inbody
+        }
+        
+        if let tag = token as? TagToken {
+            
+            switch tag.kind {
+            case .starttag:
+                
+                self.nodes.append(ElementNode(token: tag))
+                
+                if tag.name == "input" || tag.name == "img" || tag.name == "area" || tag.name == "embed" || tag.name == "hr" || tag.name == "wbr" || tag.name == "br"  {
+                    self.pop()
+                }
+                
+            case .endtag:
+
+                self.pop()
+                
+                if tag.name == "body" {
+                    return .afterbody
+                }
+            }
+            
+            return .inbody
+        }
+        
+        if let attribute = token as? AttributeToken {
+            
+            if let last = self.nodes.last {
+                last.add(attribute: AttributeNode(token: attribute))
+            }
+            
+            return .inbody
+        }
+        
+        throw ParserError.invalidToken
     }
     
     /// Processes the token
@@ -344,6 +412,34 @@ internal class Parser {
         
         self.log(#function)
         
-        return .afterbody
+        if let comment = token as? CommentToken {
+            
+            if let last = self.nodes.last {
+                last.add(child: CommentNode(token: comment))
+            }
+            
+            return .afterbody
+        }
+        
+        if let tag = token as? TagToken {
+            
+            if tag.name == "html" {
+                
+                switch tag.kind {
+                case .starttag:
+                    throw ParserError.invalidTag
+                    
+                case .endtag:
+                    self.pop()
+                }
+                
+            } else {
+                throw ParserError.missingHtmlTag
+            }
+            
+            return .afterbody
+        }
+        
+        throw ParserError.invalidToken
     }
 }

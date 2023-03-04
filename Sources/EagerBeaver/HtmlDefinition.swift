@@ -19,6 +19,11 @@ public class HtmlDefinition {
     }
     
     internal func render() -> String {
-        return "<!DOCTYPE HTML PUBLIC \"\(publicId ?? "")\" \"\(systemId ?? "")\">"
+        
+        if let publicId = self.publicId, let systemId = self.systemId {
+            return "<!DOCTYPE HTML PUBLIC \"\(publicId)\" \"\(systemId)\">"
+        }
+        
+        return "<!DOCTYPE html>"
     }
 }
